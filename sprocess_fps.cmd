@@ -1,116 +1,89 @@
-# 2D nMOSFET (0.18um technology)
-# ------------------------------
+# GENERATED 2026-11-20 11:48:04 by genera_sprocess.py
+# from constraint_iniziali.py + sprocess_fps.template.cmd -- DO NOT EDIT BY HAND
+
+# 2D pMOSFET on SOI substrate (Sentaurus Process)
+# ------------------------------------------------
+# TEMPLATE: the fields between double percent signs are filled in by genera_sprocess.py with the
+# values of constraint_iniziali.py. Edit this template or the .py file,
+# never the generated sprocess_fps.cmd.
 
 math coord.ucs
 
 
 # Declare initial grid (half structure)
-# -------------------------------------
+# x = depth (x=0 is the top of the Si film), y = lateral (y=0 is the channel center)
+# ----------------------------------------------------------------------------------
 
-line x location= 0.0      spacing= 1.0<nm>  tag= SiTop        
-line x location= 50.0<nm> spacing= 10.0<nm>                    
-line x location= 0.5<um>  spacing= 50.0<nm>                      
-line x location= 2.0<um>  spacing= 0.2<um>                       
-line x location= 4.0<um>  spacing= 0.4<um>                       
-line x location= 10.0<um> spacing= 2.0<um>  tag= SiBottom   
+line x location= 0.0           spacing= 1<nm>  tag= SiTop
+line x location= 10<nm>      spacing= 1<nm>  tag= BoxTop
+line x location= 60<nm> spacing= 10.0<nm>          tag= BoxBot
+line x location= 460<nm>  spacing= 50.0<nm>          tag= SiBottom
 
-line y location= 0.0      spacing= 50.0<nm> tag= Mid         
-line y location= 0.40<um> spacing=50.0<nm>  tag= Right       
-
-
-# Silicon substrate definition
-# ----------------------------
-
-region Silicon xlo= SiTop xhi= SiBottom ylo= Mid yhi= Right
+line y location= 0.0           spacing= 5.0<nm>           tag= Mid
+line y location= 100<nm>   spacing= 10.0<nm>          tag= Right
 
 
-# Initialize the simulation
-# -------------------------
+# SOI substrate definition: Si film / buried oxide (BOX) / Si handle wafer
+# ------------------------------------------------------------------------
 
-init concentration= 1.0e+15<cm-3> field= Phosphorus !DelayFullD
-
-AdvancedCalibration 
-
-struct tdr=n@node@_NMOS_substrate0; #substrate 
+region Silicon xlo= SiTop  xhi= BoxTop   ylo= Mid yhi= Right
+region Oxide   xlo= BoxTop xhi= BoxBot   ylo= Mid yhi= Right
+region Silicon xlo= BoxBot xhi= SiBottom ylo= Mid yhi= Right
 
 
-# p-well, anti-punchthrough & Vt adjustment implants
+# Initialize the simulation (n-type body for a pMOS)
 # --------------------------------------------------
 
-implant  Boron  dose= 2.0e13<cm-2>  energy= 200<keV> tilt= 0 rotation= 0 
-SetPlxList   {BTotal}
-WritePlx n@node@_NMOS_pwell1.plx  y=0.0 Silicon
-struct tdr=n@node@_NMOS_pwell1; 
+init concentration= 1.000e+15<cm-3> field= Phosphorus !DelayFullD
 
-implant  Boron  dose= 1.0e13<cm-2>  energy= 80<keV> tilt= 0 rotation= 0  
-SetPlxList   {BTotal}
-WritePlx n@node@_NMOS_pwell2.plx  y=0.0 Silicon
-struct tdr=n@node@_NMOS_pwell2; 
+AdvancedCalibration
 
-implant  Boron  dose= 2.0e12<cm-2>  energy= 25<keV> tilt= 0 rotation= 0  
-SetPlxList   {BTotal}
-WritePlx n@node@_NMOS_pwell3.plx  y=0.0 Silicon
-struct tdr=n@node@_NMOS_pwell3;
-
-diffuse temperature= 1050<C> time= 10.0<s>   
-SetPlxList   {BTotal}
-WritePlx n@node@_NMOS_substrate1.plx  y=0.0 Silicon
-struct tdr=n@node@_NMOS_substrate1; #substrate with pwell
+struct tdr=n@node@_NMOS_substrate0; #substrate
 
 
 # Global Mesh settings for automatic meshing in newly generated layers
 # --------------------------------------------------------------------
 
-grid set.min.normal.size= 1<nm> set.normal.growth.ratio.2d= 1.5
+grid set.min.normal.size= 0.5<nm> set.normal.growth.ratio.2d= 1.5
 mgoals accuracy= 1e-5
 
-#pdbSet Oxide Grid perp.add.dist 1e-7
-#pdbSet Grid NativeLayerThickness 1e-7
 
+# Gate oxide (deposited, so it does not consume the thin Si film)
+# ---------------------------------------------------------------
 
-# Gate oxidation
-# --------------
-
-diffuse temperature= 850<C> time= 10.0<min> O2
+deposit material= {Oxide} type= isotropic time= 1 rate= {0.0015}
 
 
 # Poly gate deposition
 # --------------------
 
-deposit material= {PolySilicon} type= anisotropic time= 1 rate= {0.18}
+deposit material= {PolySilicon} type= anisotropic time= 1 rate= {0.05}
 
 
 # Poly gate pattern/etch
 # ----------------------
 
-mask name= gate_mask left=-1 right= 90<nm>
+mask name= gate_mask left=-1 right= 20<nm>
 
-etch material= {PolySilicon} type= anisotropic time= 1 rate= {0.2} \
-  mask= gate_mask
+etch material= {PolySilicon} type= anisotropic time= 1 rate= {0.055} mask= gate_mask
 
 struct tdr= n@node@_NMOS1;
 
-etch material= {Oxide}       type= anisotropic time= 1 rate= {0.03}
+etch material= {Oxide}       type= anisotropic time= 1 rate= {0.0045}
 
 struct tdr= n@node@_NMOS2; # PolyGate
 
 
-# Poly reoxidation
-# ----------------
-
-diffuse temperature= 900<C> time= 10.0<min>  O2 
-
-struct tdr= n@node@_NMOS3 ; # Poly Reox
+# (poly reoxidation removed: it would consume silicon from the thin film)
 
 
-# LDD implantation
-# ----------------
+# LDD implantation (p- extensions)
+# --------------------------------
 
-refinebox Silicon min= {0.0 0.05} max= {0.1 0.12} xrefine= {0.01 0.01 0.01} \
-                                                  yrefine= {0.01 0.01 0.01} add
+refinebox Silicon min= {0.0 0.01} max= {0.01 0.05} xrefine= {0.0005 0.0005 0.0005} yrefine= {0.002 0.002 0.002} add
 grid remesh
 
-implant Arsenic dose= 4e14<cm-2> energy= 10<keV> tilt= 0 rotation= 0
+implant Boron dose= 5.000e+12<cm-2> energy= 0.5<keV> tilt= 0 rotation= 0
 
 struct tdr= n@node@_NMOS4 ; # LDD Implant
 
@@ -119,71 +92,44 @@ diffuse temperature= 1050<C> time= 0.1<s> ; # Quick activation
 struct tdr= n@node@_NMOS5 ; # LDD Diffuse
 
 
-# Halo implantation: Quad HALO implants
-# -------------------------------------
-
-implant Boron dose= 0.25e13<cm-2> energy= 20<keV> tilt= 30<degree> \
-rotation= 0
-
-struct tdr= n@node@_NMOS6 ; # Halo 1
-
-implant Boron dose= 0.25e13<cm-2> energy= 20<keV> tilt= 30<degree> \
-rotation= 90<degree>
-
-struct tdr= n@node@_NMOS7 ; # Halo 2
-
-implant Boron dose= 0.25e13<cm-2> energy= 20<keV> tilt= 30<degree> \
-rotation= 180<degree>
-
-struct tdr= n@node@_NMOS8 ; # Halo 3
-
-implant Boron dose= 0.25e13<cm-2> energy= 20<keV> tilt= 30<degree> \
-rotation= 270<degree>
-
-struct tdr= n@node@_NMOS9 ; # Halo 4
+# (halo implants not included: optional, not required by the specification)
 
 
-# RTA of LDD/HALO implants
-# ------------------------
+# RTA of LDD implants
+# -------------------
 
-diffuse temperature= 1050<C> time= 5.0<s>
+diffuse temperature= 1050<C> time= 5<s>
 
-struct tdr= n@node@_NMOS10 ; # Halo RTA
+struct tdr= n@node@_NMOS10 ; # LDD RTA
 
 
 # Nitride spacer
 # --------------
 
-deposit material= {Nitride} type= isotropic  time= 1 rate= {0.06}
+deposit material= {Nitride} type= isotropic time= 1 rate= {0.01}
 
 struct tdr= n@node@_NMOS11 ; # Spacer deposition
 
-etch    material= {Nitride} type= anisotropic time = 1 rate= {0.084} \
-				isotropic.overetch= 0.01
+etch    material= {Nitride} type= anisotropic time= 1 rate= {0.014} isotropic.overetch= 0.00166667
 
-struct tdr= n@node@_NMOS12 ; # Spacer etch				
-				
-etch    material= {Oxide}   type= anisotropic time= 1 rate= {0.01} 
-
-struct tdr= n@node@_NMOS13 ; # Spacer oxide removal
+struct tdr= n@node@_NMOS12 ; # Spacer etch
 
 
-# N+ implantation
-# ---------------
-#----- insert here the cmmands for refinebox creation -----#
+# P+ source/drain implantation
+# ----------------------------
 
+refinebox Silicon min= {0.0 0.02} max= {0.01 0.1} xrefine= {0.0005 0.0005 0.0005} yrefine= {0.005 0.005 0.005} add
+grid remesh
 
-# ---------------------------------------------------------#
-implant Arsenic dose= 5e15<cm-2> energy= 40<keV> \
-        tilt= 7<degree> rotation= -90<degree> 
+implant Boron dose= 1.000e+14<cm-2> energy= 1<keV> tilt= 7<degree> rotation= -90<degree>
 
-struct tdr= n@node@_NMOS14 ; # N+ implantation
+struct tdr= n@node@_NMOS14 ; # P+ implantation
 
 
 # Final RTA
 # ---------------------------
 
-diffuse temperature= 1050<C> time= 10.0<s> 
+diffuse temperature= 1050<C> time= 10<s>
 
 struct tdr= n@node@_NMOS15 ; # Final RTA
 
@@ -195,15 +141,13 @@ deposit material= {Aluminum} type= isotropic time= 1 rate= {0.03}
 
 struct tdr= n@node@_NMOS16 ; # Aluminium deposition
 
-mask name= contacts_mask left= 0.2<um> right= 1.0<um>
-etch material= {Aluminum} type= anisotropic time= 1 rate= {0.25} \
-     mask= contacts_mask
-     
-struct tdr= n@node@_NMOS17 ; # Aluminium etching 1   
+mask name= contacts_mask left= 50<nm> right= 1.0<um>
+etch material= {Aluminum} type= anisotropic time= 1 rate= {0.25} mask= contacts_mask
 
-mask name= gate_mask2 left=-1 right= 80<nm> negative
-deposit material= {Aluminum} type= anisotropic time= 1 rate= {0.03} \
-     mask= gate_mask2 
+struct tdr= n@node@_NMOS17 ; # Aluminium etching 1
+
+mask name= gate_mask2 left=-1 right= 18<nm> negative
+deposit material= {Aluminum} type= anisotropic time= 1 rate= {0.03} mask= gate_mask2
 
 struct tdr= n@node@_NMOS18 ; # Gate contact creation
 
@@ -211,7 +155,7 @@ struct tdr= n@node@_NMOS18 ; # Gate contact creation
 # Reflect
 # -------
 
-transform reflect left 
+transform reflect left
 
 
 # save final structure:
@@ -222,34 +166,24 @@ struct tdr= n@node@_NMOS20 ; # Final
 SetPlxList   {BTotal NetActive}
 WritePlx n@node@_NMOS_channel.plx  y=0.0 Silicon
 
-SetPlxList   {AsTotal BTotal NetActive}
-WritePlx n@node@_NMOS_ldd.plx y=0.1 Silicon
+SetPlxList   {PTotal BTotal NetActive}
+WritePlx n@node@_NMOS_ldd.plx y=0.025 Silicon
 
-SetPlxList   {AsTotal BTotal NetActive}
-WritePlx n@node@_NMOS_sd.plx y=0.39 Silicon
+SetPlxList   {PTotal BTotal NetActive}
+WritePlx n@node@_NMOS_sd.plx y=0.09 Silicon
 
 
 # Contacts
 # -------
-	
+
 contact bottom name = substrate Silicon
 
-contact name = gate x = -0.2 y = 0.0 Aluminum
+contact name = gate x = -0.0665 y = 0.0 Aluminum
 
-contact name = source x = -0.027 y = -0.3 Aluminum
+contact name = source x = -0.027 y = -0.075 Aluminum
 
-contact name = drain x = -0.027 y = 0.3 Aluminum
+contact name = drain x = -0.027 y = 0.075 Aluminum
 
 struct tdr= n@node@_presimulation
 
 exit
-
-
-
-
-
-
-
-
-
-
